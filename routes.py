@@ -512,27 +512,20 @@ from PIL import Image
 
 # Defina a pasta base onde as imagens serão salvas
 
+import uuid
+
+# Defina a pasta base onde as imagens serão salvas
 @routes.route('/getSalvarImage', methods=['POST'])
 def getSalvarImage():
     try:
-
         data = request.get_json()
-        image_data = data.get('image')  # Exemplo: data:image/png;base64,
-        name = data.get('name')
+        image_data_list = data.get('image')  # Agora é um array de imagens base64
+        # Valida se a lista de imagens foi passada corretamente
+        if not image_data_list or not isinstance(image_data_list, list):
+            return jsonify({'error': 'Lista de imagens não fornecida ou inválida'}), 400
+
         # Defina a pasta base onde as imagens serão salvas
         BASE_DIR = 'imagens'  # Diretório base onde as imagens serão salvas
-
-
-        # Valida se a imagem e o nome foram passados corretamente
-        if not image_data or not name:
-            return jsonify({'error': 'Imagem ou nome não fornecidos'}), 400
-
-        # Extrai a parte base64 da string
-        if image_data.startswith('data:image/png;base64,'):
-            image_data = image_data.replace('data:image/png;base64,', '')
-        
-        # Decodifica a string Base64 em bytes
-        image_bytes = base64.b64decode(image_data)
 
         # Gera o caminho da pasta com base na data atual (dia-mês-ano)
         current_date = datetime.now().strftime('%d-%m-%Y')
@@ -541,14 +534,32 @@ def getSalvarImage():
         # Cria a pasta, se ela ainda não existir
         os.makedirs(image_folder, exist_ok=True)
 
-        # Gera o caminho completo do arquivo para salvar
-        image_path = os.path.join(image_folder, f'{name}.png')
+        # Lista para armazenar os caminhos das imagens salvas
+        saved_images = []
 
-        # Salva a imagem como arquivo PNG
-        with open(image_path, 'wb') as image_file:
-            image_file.write(image_bytes)
+        # Itera sobre cada imagem no array
+        for image_data in image_data_list:
+            # Extrai a parte base64 da string
+            if image_data.startswith('data:image/png;base64,'):
+                image_data = image_data.replace('data:image/png;base64,', '')
 
-        return jsonify({'message': 'Imagem salva com sucesso', 'path': image_path})
+            # Decodifica a string Base64 em bytes
+            image_bytes = base64.b64decode(image_data)
+
+            # Gera um nome único para cada imagem
+            unique_name = str(uuid.uuid4()) + ".png"
+
+            # Gera o caminho completo do arquivo para salvar
+            image_path = os.path.join(image_folder, unique_name)
+
+            # Salva a imagem como arquivo PNG
+            with open(image_path, 'wb') as image_file:
+                image_file.write(image_bytes)
+
+            # Adiciona o caminho da imagem salva à lista
+            saved_images.append(image_path)
+
+        return jsonify({'message': 'Imagens salvas com sucesso', 'paths': saved_images})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
